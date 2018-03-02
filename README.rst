@@ -95,3 +95,5 @@ TODO
   http://aws.amazon.com/s3/faqs/#What_data_consistency_model_does_Amazon_S3_employ
 
 - Test direct HTTP downloads, like a web browser would do.
+
+NOTE: This is a GIT subtree of StorReduce
