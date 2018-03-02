@@ -1,0 +1,14 @@
+Treat the Ceph library as part of the StorReduce repository as if any regular directory.
+
+If you need to update the library and push the changes, you first need to add a Git Subtree remote:
+git remote add ceph-tests git@github.com:gavinong10/s3-tests.git
+
+Then, in the root directory, you can push changes:
+
+git subtree push --prefix=test/ceph-tests/ ceph-tests master
+
+This only needs to be done once in a while.
+
+Probably more importantly, if we want to sync S3 ceph tests from the origin:
+-> Merge the fork with the source
+-> git subtree pull --prefix=test/ceph-tests/ ceph-tests master
