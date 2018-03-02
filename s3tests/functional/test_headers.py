@@ -13,7 +13,6 @@ import socket
 import ssl
 import os
 import re
-from email.utils import formatdate
 
 from urlparse import urlparse
 
@@ -184,6 +183,7 @@ def tag(*tags):
 @attr(method='put')
 @attr(operation='create w/invalid MD5')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_md5_invalid_short():
     key = _setup_bad_object({'Content-MD5':'YWJyYWNhZGFicmE='})
@@ -198,6 +198,7 @@ def test_object_create_bad_md5_invalid_short():
 @attr(method='put')
 @attr(operation='create w/mismatched MD5')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_md5_bad():
     key = _setup_bad_object({'Content-MD5':'rL0Y20zC+Fzt72VPzMSk2A=='})
@@ -212,6 +213,7 @@ def test_object_create_bad_md5_bad():
 @attr(method='put')
 @attr(operation='create w/empty MD5')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_md5_empty():
     key = _setup_bad_object({'Content-MD5': ''})
@@ -228,6 +230,7 @@ def test_object_create_bad_md5_empty():
 @attr(operation='create w/non-graphics in MD5')
 @attr(assertion='fails 403')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_md5_unreadable():
     key = _setup_bad_object({'Content-MD5': '\x07'})
@@ -258,6 +261,7 @@ def test_object_create_bad_md5_none():
 @attr(assertion='garbage, but S3 succeeds!')
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_expect_mismatch():
     key = _setup_bad_object({'Expect': 200})
     key.set_contents_from_string('bar')
@@ -296,6 +300,7 @@ def test_object_create_bad_expect_none():
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_expect_unreadable():
     key = _setup_bad_object({'Expect': '\x07'})
     key.set_contents_from_string('bar')
@@ -308,6 +313,7 @@ def test_object_create_bad_expect_unreadable():
 @attr(assertion='fails 400')
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_contentlength_empty():
     key = _setup_bad_object({'Content-Length': ''})
 
@@ -337,6 +343,7 @@ def test_object_create_bad_contentlength_negative():
 @attr(method='put')
 @attr(operation='create w/no content length')
 @attr(assertion='fails 411')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_contentlength_none():
     key = _setup_bad_object(remove=('Content-Length',))
@@ -371,17 +378,19 @@ def test_object_create_bad_contentlength_unreadable():
 @attr(assertion='fails 400')
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
+@attr('fails_on_storreduce_to_fix_srr')
+@attr('fails_on_storreduce_hangs')
 def test_object_create_bad_contentlength_mismatch_above():
     content = 'bar'
     length = len(content) + 1
-
+    
     key = _setup_bad_object({'Content-Length': length})
 
     # Disable retries since key.should_retry will discard the response with
     # PleaseRetryException.
     def no_retry(response, chunked_transfer): return False
     key.should_retry = no_retry
-
+    
     e = assert_raises(boto.exception.S3ResponseError, key.set_contents_from_string, content)
     eq(e.status, 400)
     eq(e.reason.lower(), 'bad request') # some proxies vary the case
@@ -429,6 +438,7 @@ def test_object_create_bad_contenttype_none():
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_contenttype_unreadable():
     key = _setup_bad_object({'Content-Type': '\x08'})
 
@@ -447,6 +457,7 @@ def test_object_create_bad_contenttype_unreadable():
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_authorization_unreadable():
     key = _setup_bad_object({'Authorization': '\x07'})
 
@@ -526,6 +537,7 @@ def test_bucket_create_contentlength_none():
 @attr(operation='set w/no content length')
 @attr(assertion='succeeds')
 @nose.with_setup(teardown=_clear_custom_headers)
+@attr('fails_on_storreduce_unexamined')
 def test_object_acl_create_contentlength_none():
     bucket = get_new_bucket()
     key = bucket.new_key('foo')
@@ -541,6 +553,7 @@ def test_object_acl_create_contentlength_none():
 @attr(operation='set w/invalid permission')
 @attr(assertion='fails 400')
 @nose.with_setup(teardown=_clear_custom_headers)
+@attr('fails_on_storreduce_unexamined')
 def test_bucket_put_bad_canned_acl():
     bucket = get_new_bucket()
 
@@ -559,6 +572,7 @@ def test_bucket_put_bad_canned_acl():
 @attr(assertion='garbage, but S3 succeeds!')
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
+@attr('fails_on_storreduce_unexamined')
 def test_bucket_create_bad_expect_mismatch():
     _add_custom_headers({'Expect':200})
     bucket = get_new_bucket()
@@ -586,6 +600,7 @@ def test_bucket_create_bad_expect_empty():
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 def test_bucket_create_bad_expect_unreadable():
     _add_custom_headers({'Expect': '\x07'})
     bucket = get_new_bucket()
@@ -612,6 +627,7 @@ def _create_new_connection():
 @attr(assertion='fails 400')
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
+@attr('fails_on_storreduce_unexamined')
 def test_bucket_create_bad_contentlength_empty():
     conn = _create_new_connection()
     _add_custom_headers({'Content-Length': ''})
@@ -670,6 +686,7 @@ def test_bucket_create_bad_contentlength_unreadable():
 @nose.with_setup(teardown=_clear_custom_headers)
 @attr('fails_on_rgw')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 def test_bucket_create_bad_authorization_unreadable():
     _add_custom_headers({'Authorization': '\x07'})
     e = assert_raises(boto.exception.S3ResponseError, get_new_bucket)
@@ -715,6 +732,7 @@ def test_bucket_create_bad_authorization_none():
 @attr(method='put')
 @attr(operation='create w/invalid MD5')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_md5_invalid_garbage_aws2():
     check_aws2_support()
@@ -730,6 +748,7 @@ def test_object_create_bad_md5_invalid_garbage_aws2():
 @attr(method='put')
 @attr(operation='create w/content length too short')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_contentlength_mismatch_below_aws2():
     check_aws2_support()
@@ -747,6 +766,7 @@ def test_object_create_bad_contentlength_mismatch_below_aws2():
 @attr(method='put')
 @attr(operation='create w/incorrect authorization')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_authorization_incorrect_aws2():
     check_aws2_support()
@@ -763,6 +783,7 @@ def test_object_create_bad_authorization_incorrect_aws2():
 @attr(method='put')
 @attr(operation='create w/invalid authorization')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 def test_object_create_bad_authorization_invalid_aws2():
     check_aws2_support()
     key = _setup_bad_object({'Authorization': 'AWS HAHAHA'})
@@ -790,6 +811,7 @@ def test_object_create_bad_ua_empty_aws2():
 @attr(operation='create w/non-graphic user agent')
 @attr(assertion='succeeds')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_ua_unreadable_aws2():
     check_aws2_support()
@@ -814,6 +836,7 @@ def test_object_create_bad_ua_none_aws2():
 @attr(method='put')
 @attr(operation='create w/invalid date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_invalid_aws2():
     check_aws2_support()
@@ -829,6 +852,7 @@ def test_object_create_bad_date_invalid_aws2():
 @attr(method='put')
 @attr(operation='create w/empty date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_empty_aws2():
     check_aws2_support()
@@ -845,6 +869,7 @@ def test_object_create_bad_date_empty_aws2():
 @attr(operation='create w/non-graphic date')
 @attr(assertion='fails 403')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_unreadable_aws2():
     check_aws2_support()
@@ -861,6 +886,7 @@ def test_object_create_bad_date_unreadable_aws2():
 @attr(method='put')
 @attr(operation='create w/no date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_none_aws2():
     check_aws2_support()
@@ -876,6 +902,7 @@ def test_object_create_bad_date_none_aws2():
 @attr(method='put')
 @attr(operation='create w/date in past')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_before_today_aws2():
     check_aws2_support()
@@ -891,6 +918,7 @@ def test_object_create_bad_date_before_today_aws2():
 @attr(method='put')
 @attr(operation='create w/date in future')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_after_today_aws2():
     check_aws2_support()
@@ -906,6 +934,7 @@ def test_object_create_bad_date_after_today_aws2():
 @attr(method='put')
 @attr(operation='create w/date before epoch')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_before_epoch_aws2():
     check_aws2_support()
@@ -921,6 +950,7 @@ def test_object_create_bad_date_before_epoch_aws2():
 @attr(method='put')
 @attr(operation='create w/date after 9999')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_object_create_bad_date_after_end_aws2():
     check_aws2_support()
@@ -936,6 +966,7 @@ def test_object_create_bad_date_after_end_aws2():
 @attr(method='put')
 @attr(operation='create w/invalid authorization')
 @attr(assertion='fails 400')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_authorization_invalid_aws2():
     check_aws2_support()
@@ -964,6 +995,7 @@ def test_bucket_create_bad_ua_empty_aws2():
 @attr(operation='create w/non-graphic user agent')
 @attr(assertion='succeeds')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_ua_unreadable_aws2():
     check_aws2_support()
@@ -988,6 +1020,7 @@ def test_bucket_create_bad_ua_none_aws2():
 @attr(method='put')
 @attr(operation='create w/invalid date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_invalid_aws2():
     check_aws2_support()
@@ -1003,6 +1036,7 @@ def test_bucket_create_bad_date_invalid_aws2():
 @attr(method='put')
 @attr(operation='create w/empty date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_empty_aws2():
     check_aws2_support()
@@ -1019,6 +1053,7 @@ def test_bucket_create_bad_date_empty_aws2():
 @attr(operation='create w/non-graphic date')
 @attr(assertion='fails 403')
 @attr('fails_strict_rfc2616')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_unreadable_aws2():
     check_aws2_support()
@@ -1034,6 +1069,7 @@ def test_bucket_create_bad_date_unreadable_aws2():
 @attr(method='put')
 @attr(operation='create w/no date')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_none_aws2():
     check_aws2_support()
@@ -1049,6 +1085,7 @@ def test_bucket_create_bad_date_none_aws2():
 @attr(method='put')
 @attr(operation='create w/date in past')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_before_today_aws2():
     check_aws2_support()
@@ -1064,6 +1101,7 @@ def test_bucket_create_bad_date_before_today_aws2():
 @attr(method='put')
 @attr(operation='create w/date in future')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_after_today_aws2():
     check_aws2_support()
@@ -1079,6 +1117,7 @@ def test_bucket_create_bad_date_after_today_aws2():
 @attr(method='put')
 @attr(operation='create w/date before epoch')
 @attr(assertion='fails 403')
+@attr('fails_on_storreduce_unexamined')
 @nose.with_setup(teardown=_clear_custom_headers)
 def test_bucket_create_bad_date_before_epoch_aws2():
     check_aws2_support()
